@@ -5,7 +5,7 @@ process.mixin(GLOBAL, require('sys'));
 
 exports.createServer = function(requestListener) {
     var server = new process.tcp.Server();
-   
+
     server.addListener('request', requestListener);
     server.addListener('connection', connectionListener);
 
@@ -73,6 +73,6 @@ function connectionListener(connection) {
 exports.createServer(function (connection, env) {
     connection.send("Content-type: text/plain\r\n\r\n");
     connection.send(JSON.stringify(env));
-    debug("Haw, got here"+ JSON.stringify(env));        
+    debug("Haw, got here"+ JSON.stringify(env));
     connection.close();
 }).listen('8000');
