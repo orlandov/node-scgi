@@ -2,6 +2,8 @@
     A Javascript SCGI application server for Node.js
     Orlando Vazquez, 2009
 
+    http://www.python.ca/scgi/protocol.txt
+
     scgi = require('./lib/scgi');
     scgi.createServer(function (connection, env) {
         connection.send("Content-type: text/plain\r\n\r\n");
@@ -44,6 +46,8 @@ function connectionListener(connection) {
                         // if ':' wasn't found, keep reading
                         if (i < 0) break;
                         netstring_size = Number(buffer.slice(0, i));
+
+                        // assert netstring_size =~ /^\d+$/
                         buffer = buffer.slice(i + 1);
                         state = 'READ_NETSTRING';
                         break;
@@ -55,7 +59,6 @@ function connectionListener(connection) {
                         // assert that buffer =~ /,$/
                         debug("end of netstring was " + buffer[netstring_size]);
                         headers = buffer.slice(0, netstring_size);
-                        puts("headers was " + headers);
                         var items = headers.split("\000");
 
                         // assert items.length % 2 == 0
