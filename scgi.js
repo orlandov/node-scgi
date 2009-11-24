@@ -1,6 +1,14 @@
-// A SCGI server implementation in JavaScript that targets the Node.js
-// framework.
-// Written by Orlando Vazquez, 2009
+/*
+    A Javascript SCGI application server for Node.js
+    Orlando Vazquez, 2009
+
+    scgi = require('./lib/scgi');
+    scgi.createServer(function (connection, env) {
+        connection.send("Content-type: text/plain\r\n\r\n");
+        connection.send("hello world");
+        connection.close();
+    });
+/*
 process.mixin(GLOBAL, require('sys'));
 
 exports.createServer = function(requestListener) {
