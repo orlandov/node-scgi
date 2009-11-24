@@ -1,3 +1,6 @@
+// A SCGI server implementation in JavaScript that targets the Node.js
+// framework.
+// Written by Orlando Vazquez, 2009
 process.mixin(GLOBAL, require('sys'));
 
 exports.createServer = function(requestListener) {
@@ -10,30 +13,66 @@ exports.createServer = function(requestListener) {
 };
 
 function connectionListener(connection) {
-    puts('got new connection');
+    // TODO what is the accepted way of dealing with failed assertions?
+    debug('got new connection');
+
+    var buffer = '';
+    var state = 'READ_NETSTRING_LENGTH';
+
+    var netstring_size;
+    var headers = '';
+    var env = {};
 
     connection.addListener('receive', function (packet) {
-        puts('got packet ' + packet);
-        var colon_idx = packet.indexOf(':');
-        var header_len = Number(packet.substr(0, colon_idx));
+        debug("got a packet");
 
-        // TODO assert header_len =~ /\d+/
-        
-        var headers_chunk = packet.substr(colon_idx+1, colon_idx+header_len);
-        var headers_list = headers_chunk.split("\000");
-        var headers = {}
+        // yay state machines
+        while (state != 'DONE') {
+            buffer += packet;
+            switch(state) {
+                case 'READ_NETSTRING_LENGTH':
+                    var i;
+                    while (i = buffer.indexOf(':')) {
+                        // if ':' wasn't found, keep reading
+                        if (i < 0) break;
+                        netstring_size = Number(buffer.slice(0, i));
+                        buffer = buffer.slice(i + 1);
+                        state = 'READ_NETSTRING';
+                        break;
+                    }
+                    break;
 
-        // TODO assert headers_list.length % 2 == 0
+                case 'READ_NETSTRING':
+                    while (buffer.length >= netstring_size+1) {
+                        // assert that buffer =~ /,$/
+                        debug("end of netstring was " + buffer[netstring_size]);
+                        headers = buffer.slice(0, netstring_size);
+                        puts("headers was " + headers);
+                        var items = headers.split("\000");
 
-        for (var i=0; i < headers_list.length; i += 2) {
-            headers[headers_list[i]] = headers_list[i+1];
+                        // assert items.length % 2 == 0
+                        for (var i=0,l=items.length; i < l; i += 2) {
+                            env[items[i]] = items[i+1];
+                        }
+
+                        state = 'DONE';
+
+                        connection.server.emit('request', connection, env)
+                        break;
+                    }
+                    break;
+
+                // deal with additional reads if CONTENT_LENGTH > 0
+            }
         }
-
-        connection.server.emit('request', headers);
+        debug("all done!");
+        return;
     });
 }
 
-exports.createServer(function () {
-    puts("Haw, got here"+ JSON.stringify({nuts:arguments}));        
-    p(arguments);
+exports.createServer(function (connection, env) {
+    connection.send("Content-type: text/plain\r\n\r\n");
+    connection.send(JSON.stringify(env));
+    debug("Haw, got here"+ JSON.stringify(env));        
+    connection.close();
 }).listen('8000');
