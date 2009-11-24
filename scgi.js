@@ -8,7 +8,7 @@
         connection.send("hello world");
         connection.close();
     });
-/*
+*/
 process.mixin(GLOBAL, require('sys'));
 
 exports.createServer = function(requestListener) {
