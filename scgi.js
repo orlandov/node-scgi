@@ -11,6 +11,7 @@
         connection.close();
     });
 */
+
 process.mixin(GLOBAL, require('sys'));
 
 exports.createServer = function(requestListener) {

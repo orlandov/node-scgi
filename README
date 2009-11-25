@@ -1,0 +1,11 @@
+A Javascript SCGI application server for Node.js
+Orlando Vazquez, 2009
+
+http://www.python.ca/scgi/protocol.txt
+
+    scgi = require('./lib/scgi');
+    scgi.createServer(function (connection, env) {
+        connection.send("Content-type: text/plain\r\n\r\n");
+        connection.send("hello world");
+        connection.close();
+    });
