@@ -112,7 +112,7 @@ function connectionListener(connection) {
                         var items = headers.split("\000");
 
                         // pop the last item if it's empty
-                        if (!items[-1]) items.pop();
+                        if (items.length && !items.slice(items.length-1)[0]) items.pop();
 
                         // assert items.length % 2 == 0
 
