@@ -8,7 +8,7 @@
     scgi.createServer(function (env) {
         var content = "";
         for (header in env) {
-            content += setting + " --> " + env[header] + "\n";
+            content += header + " --> " + env[header] + "\n";
         }
 
         return {
