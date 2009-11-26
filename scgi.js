@@ -5,10 +5,17 @@
     http://www.python.ca/scgi/protocol.txt
 
     scgi = require('./lib/scgi');
-    scgi.createServer(function (connection, env) {
-        connection.send("Content-type: text/plain\r\n\r\n");
-        connection.send("hello world");
-        connection.close();
+    scgi.createServer(function (env) {
+        var content = "";
+        for (header in env) {
+            content += setting + " --> " + env[header] + "\n";
+        }
+
+        return {
+            status: 200,
+            headers: { "Content-type": "text/plain" },
+            body: [content]
+        }
     });
 */
 
@@ -17,11 +24,54 @@ process.mixin(GLOBAL, require('sys'));
 exports.createServer = function(requestListener) {
     var server = new process.tcp.Server();
 
-    server.addListener('request', requestListener);
+    server.addListener('request', function (connection, env) {
+        var ret = requestListener(env);
+
+        connection.send("Status: " + ret.status + "\r\n");
+
+        // write out headers
+        for (header in ret.headers) {
+            connection.send(header + ": " + ret.headers[header] + "\r\n");
+        }
+        connection.send("\r\n");
+
+        // write out body
+        // TODO support forEach
+        // TODO support 
+        for (var i = 0; i < ret.body.length; i++) {
+            connection.send(ret.body[i]);
+        }
+        connection.close();
+    });
     server.addListener('connection', connectionListener);
 
     return server;
 };
+
+function getJSGIEnvFromHeaders(headers_list) {
+    var env = {};
+
+    // copy the environment
+    for (var i=0,l=headers_list.length; i < l; i += 2) {
+        env[headers_list[i]] = headers_list[i+1];
+    }
+
+    env['jsgi.version']      = [0, 2];
+    env['jsgi.multithread']  = false;
+    env['jsgi.multiprocess'] = false;
+    env['jsgi.run_once']     = false;
+
+    if (env['HTTPS'] && (env['HTTPS'] == "on" || env['HTTPS'] == "1")) {
+        env['jsgi.url_scheme'] = 'https';
+    }
+    else {
+        env['jsgi.url_scheme'] = 'http';
+    }
+
+    // TODO deal with jsgi.input jsgi.errors
+
+    return env;
+}
 
 function connectionListener(connection) {
     // TODO what is the accepted way of dealing with failed assertions?
@@ -32,7 +82,6 @@ function connectionListener(connection) {
 
     var netstring_size;
     var headers = '';
-    var env = {};
 
     connection.addListener('receive', function (packet) {
         debug("got a packet");
@@ -62,13 +111,14 @@ function connectionListener(connection) {
                         headers = buffer.slice(0, netstring_size);
                         var items = headers.split("\000");
 
+                        // pop the last item if it's empty
+                        if (!items[-1]) items.pop();
+
                         // assert items.length % 2 == 0
-                        for (var i=0,l=items.length; i < l; i += 2) {
-                            env[items[i]] = items[i+1];
-                        }
 
                         state = 'DONE';
 
+                        var env = getJSGIEnvFromHeaders(items);
                         connection.server.emit('request', connection, env)
                         break;
                     }
@@ -82,9 +132,17 @@ function connectionListener(connection) {
     });
 }
 
-exports.createServer(function (connection, env) {
-    connection.send("Content-type: text/plain\r\n\r\n");
-    connection.send(JSON.stringify(env));
+exports.createServer(function (env) {
+    var content = "";
+    for (header in env) {
+        content += header + " => " + env[header] + "\n";
+    }
+
     debug("Haw, got here"+ JSON.stringify(env));
-    connection.close();
+
+    return {
+        status: 200,
+        headers: { "Content-type": "text/plain" },
+        body: [content]
+    }
 }).listen('8000');
