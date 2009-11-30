@@ -21,33 +21,6 @@
 
 process.mixin(GLOBAL, require('sys'));
 
-exports.createServer = function(requestListener) {
-    var server = new process.tcp.Server();
-
-    server.addListener('request', function (connection, env) {
-        var ret = requestListener(env);
-
-        connection.send("Status: " + ret.status + "\r\n");
-
-        // write out headers
-        for (header in ret.headers) {
-            connection.send(header + ": " + ret.headers[header] + "\r\n");
-        }
-        connection.send("\r\n");
-
-        // write out body
-        // TODO support forEach
-        // TODO support 
-        for (var i = 0; i < ret.body.length; i++) {
-            connection.send(ret.body[i]);
-        }
-        connection.close();
-    });
-    server.addListener('connection', connectionListener);
-
-    return server;
-};
-
 function getJSGIEnvFromHeaders(headers_list) {
     var env = {};
 
@@ -132,17 +105,30 @@ function connectionListener(connection) {
     });
 }
 
-exports.createServer(function (env) {
-    var content = "";
-    for (header in env) {
-        content += header + " => " + env[header] + "\n";
-    }
+exports.createServer = function(requestListener) {
+    var server = new process.tcp.Server();
 
-    debug("Haw, got here"+ JSON.stringify(env));
+    server.addListener('request', function (connection, env) {
+        var ret = requestListener(env);
 
-    return {
-        status: 200,
-        headers: { "Content-type": "text/plain" },
-        body: [content]
-    }
-});
+        connection.send("Status: " + ret.status + "\r\n");
+
+        // write out headers
+        for (header in ret.headers) {
+            connection.send(header + ": " + ret.headers[header] + "\r\n");
+        }
+        connection.send("\r\n");
+
+        // write out body
+        // TODO support forEach
+        // TODO support 
+        for (var i = 0; i < ret.body.length; i++) {
+            connection.send(ret.body[i]);
+        }
+        connection.close();
+    });
+    server.addListener('connection', connectionListener);
+
+    return server;
+};
+
